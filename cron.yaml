@@ -1,0 +1,4 @@
+cron:
+- description: Update the stock list
+  url: /check
+  schedule: every 30 mins
