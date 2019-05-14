@@ -103,7 +103,7 @@ function update_url(keyUrl, crawlUrl) {
 function update_all() {
   return new Promise((resolve, reject) => {
     const query = datastore.createQuery('target');
-    datastore.runQuery(query)
+    runPageQuery(query)
       .then(results => {
         return Promise.all(results[0].map((task) => {
           var url = queryString.parseUrl(task.url)
@@ -148,10 +148,32 @@ function update_all() {
   });
 }
 
+async function runPageQuery(query, pageCursor) {
+  if (pageCursor) {
+    query = query.start(pageCursor);
+  }
+  const results = await datastore.runQuery(query);
+  const entities = results[0];
+  const info = results[1];
+
+  if (info.moreResults !== Datastore.NO_MORE_RESULTS) {
+    // If there are more results to retrieve, the end cursor is
+    // automatically set on `info`. To get this value directly, access
+    // the `endCursor` property.
+    const results = await runPageQuery(query, info.endCursor);
+
+    // Concatenate entities
+    results[0] = entities.concat(results[0]);
+    return results;
+  }
+
+  return [entities, info];
+}
+
 function check_soldOut(targetUrl) {
-  const query = datastore.createQuery(targetUrl).filter('update', '<', new Date(Date.now() - 12 * 60 * 1000 * 60))
+  let query = datastore.createQuery(targetUrl).filter('update', '<', new Date(Date.now() - 12 * 60 * 1000 * 60)).limit(20);
   return new Promise((resolve, reject) => {
-    datastore.runQuery(query)
+    runPageQuery(query)
       .then(results => {
         // Task entities found.
         const tasks = results[0];
@@ -185,7 +207,7 @@ function check_soldOut(targetUrl) {
 function check_all_soldOut() {
   return new Promise((resolve, reject) => {
     const query = datastore.createQuery('target');
-    datastore.runQuery(query)
+    runPageQuery(query)
       .then(results => {
         // Task entities found.
         const tasks = results[0];
