@@ -9,3 +9,4 @@ logs/
 .idea/
 .nyc_output
 yarn.lock
+.env

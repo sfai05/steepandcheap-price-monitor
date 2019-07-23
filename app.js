@@ -28,14 +28,18 @@ const app = express();
 
 // Imports the Google Cloud client library
 const Datastore = require('@google-cloud/datastore')
+
+// Load the config file
+require('dotenv').config()
+
 // Creates a client
 const datastore = new Datastore({
-  projectId: process.env.GOOGLE_CLOUD_PROJECT
+  projectId: process.env.GCP_PROJECT_ID
 });
 
 const domain = 'http://steepandcheap.com'
-const bot = new Telegraf('token')
-const tgGroupId = 'group_id'
+const bot = new Telegraf(process.env.TG_BOT_TOKEN)
+const tgGroupId = process.env.TG_GROUP_ID
 
 function update_url(keyUrl, crawlUrl) {
   function update_db(productDom, keyUrl) {
