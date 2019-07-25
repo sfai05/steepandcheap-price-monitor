@@ -19,11 +19,9 @@ const Markup = require('telegraf/markup')
 
 const HTMLParser = require('node-html-parser')
 const rp = require('request-promise');
-const schedule = require('node-schedule')
 const queryString = require("query-string")
 
-const express = require('express');
-const app = express();
+var CronJob = require('cron').CronJob;
 
 
 // Imports the Google Cloud client library
@@ -47,13 +45,20 @@ function update_url(keyUrl, crawlUrl) {
     var currentTime = new Date()
     productDom.forEach(product => {
       var taskKey = datastore.key([keyUrl, product.attributes['data-product-id']])
+      var stockLevelDom = product.querySelector('.pli-stock-level')
+      var stockLevelNum = "null"
+      if ( typeof( stockLevelDom ) == "object" && stockLevelDom != null ){
+        stockLevelNum = stockLevelDom.text.match(/\d/g).join("")
+      }else{
+        console.log("Little strange on the item : " + domain + product.querySelector('a').attributes['href'] )
+      }
       var thisItem = {
         'brand': product.querySelector('.ui-pl-name-brand').text,
         'name': product.querySelector('.ui-pl-name-title').text,
         'link': domain + product.querySelector('a').attributes['href'],
         'discount': product.querySelector('.discount-amount-text').text,
         'price': product.querySelector('.ui-pl-pricing-low-price').text,
-        'stock': product.querySelector('.product-stock-level').attributes['value'],
+        'stock': stockLevelNum,
         'update': currentTime
       }
       tasks.push(
@@ -62,6 +67,8 @@ function update_url(keyUrl, crawlUrl) {
         .then(results => {
           if (results[0] == undefined) {
             thisItem.add = currentTime
+            console.log(`✅ <b>${thisItem.discount} Off!</b> (${thisItem.price}) ( Stock : ${thisItem.stock} ) <a href="${thisItem.link}">${thisItem.brand} - ${thisItem.name}</a>`)
+            // return true
             return bot.telegram.sendMessage(
               tgGroupId,
               `✅ <b>${thisItem.discount} Off!</b> (${thisItem.price}) ( Stock : ${thisItem.stock} ) <a href="${thisItem.link}">${thisItem.brand} - ${thisItem.name}</a>`, {
@@ -100,7 +107,7 @@ function update_url(keyUrl, crawlUrl) {
           resolve()
         });
       })
-      .catch((err) => reject());
+      .catch((err) => { console.log(err); reject()} );
   });
 }
 
@@ -228,7 +235,7 @@ function check_all_soldOut() {
   });
 }
 
-app.get('/check', (req, res) => {
+new CronJob('*/30 * * * * *', function() {
   update_all()
     .then(() => check_all_soldOut())
     .then(() => {
@@ -239,25 +246,12 @@ app.get('/check', (req, res) => {
         }
       })
     })
-  res.status(200).send('Start update!').end();
-});
+}, null, true, 'America/Los_Angeles');
 
-app.get('/latest', (req, res) => {
-  var taskKey = datastore.key(['options', 'update'])
-  datastore.get(taskKey).then(results => {
-    const entity = results[0];
-    res.status(200).send(entity.time).end();
-  });
-});
-
-// Index page, just to make it easy to see if the app is working.
-app.get('/', (req, res) => {
-  res.status(200).send('Hello, world!').end()
-});
-
-// Start the server
-const PORT = process.env.PORT || 8080;
-app.listen(PORT, () => {
-  console.log(`App listening on port ${PORT}`);
-  console.log('Press Ctrl+C to quit.');
-});
+// new CronJob('15 * * * * *', function() {
+//   var taskKey = datastore.key(['options', 'update'])
+//   datastore.get(taskKey).then(results => {
+//     const entity = results[0];
+//     console.log(entity)
+//   });
+// }, null, true, 'America/Los_Angeles');
