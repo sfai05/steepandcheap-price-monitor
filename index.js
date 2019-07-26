@@ -21,9 +21,6 @@ const HTMLParser = require('node-html-parser')
 const rp = require('request-promise');
 const queryString = require("query-string")
 
-var CronJob = require('cron').CronJob;
-
-
 // Imports the Google Cloud client library
 const Datastore = require('@google-cloud/datastore')
 
@@ -235,23 +232,21 @@ function check_all_soldOut() {
   });
 }
 
-new CronJob('*/30 * * * * *', function() {
-  update_all()
-    .then(() => check_all_soldOut())
-    .then(() => {
-      return datastore.save({
-        key: datastore.key(['options', 'update']),
-        data: {
-          'time': new Date()
-        }
-      })
+exports.startUpdate = data => {
+  return update_all()
+  .then(() => check_all_soldOut())
+  .then(() => {
+    return datastore.save({
+      key: datastore.key(['options', 'update']),
+      data: {
+        'time': new Date()
+      }
     })
-}, null, true, 'America/Los_Angeles');
+  })
+};
 
-// new CronJob('15 * * * * *', function() {
 //   var taskKey = datastore.key(['options', 'update'])
 //   datastore.get(taskKey).then(results => {
 //     const entity = results[0];
 //     console.log(entity)
 //   });
-// }, null, true, 'America/Los_Angeles');
